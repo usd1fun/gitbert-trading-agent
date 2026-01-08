@@ -1,0 +1,3 @@
+# GitBert Trading Agent
+
+TODO
