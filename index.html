@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GITBERT v0.1.0 - Solana Trading Agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000000;
+            color: #00d4ff;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .terminal {
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+            background: 
+                linear-gradient(0deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(0, 212, 255, 0.03) 0px,
+                    rgba(0, 212, 255, 0.03) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+            animation: scanlines 8s linear infinite;
+        }
+
+        @keyframes scanlines {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100%; }
+        }
+
+        .line {
+            margin: 4px 0;
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #00d4ff;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .header {
+            color: #0080ff;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #00ff88;
+        }
+
+        .warning {
+            color: #ffaa00;
+        }
+
+        .error {
+            color: #ff4444;
+        }
+
+        .muted {
+            color: #0066aa;
+        }
+
+        .bright {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            display: inline-block;
+            width: 300px;
+            height: 20px;
+            border: 1px solid #00d4ff;
+            margin-left: 10px;
+            position: relative;
+            vertical-align: middle;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0080ff, #00d4ff);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .info-box {
+            border: 1px solid #00d4ff;
+            padding: 10px;
+            margin: 15px 0;
+            background: rgba(0, 128, 255, 0.05);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .separator {
+            color: #0066aa;
+            margin: 10px 0;
+        }
+
+        pre {
+            color: #00d4ff;
+            margin: 5px 0;
+        }
+
+        .timestamp {
+            color: #0080ff;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .status-indicator.warming {
+            background: #ffaa00;
+            box-shadow: 0 0 10px #ffaa00;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.03;
+            z-index: 0;
+        }
+
+        .terminal-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .glitch {
+            animation: glitch 3s infinite;
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% { transform: translate(0); }
+            92% { transform: translate(-2px, 1px); }
+            94% { transform: translate(2px, -1px); }
+            96% { transform: translate(-1px, 2px); }
+        }
+    </style>
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+    <div class="terminal">
+        <div class="terminal-content" id="output"></div>
+    </div>
+
+    <script>
+        // Matrix rain effect
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const chars = '01';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00d4ff';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+
+        // Terminal output
+        const output = document.getElementById('output');
+        const lines = [
+            { text: '', delay: 0 },
+            { text: '   ██████╗ ██╗████████╗██████╗ ███████╗██████╗ ████████╗', delay: 50, class: 'bright glitch' },
+            { text: '  ██╔════╝ ██║╚══██╔══╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝', delay: 100, class: 'bright glitch' },
+            { text: '  ██║  ███╗██║   ██║   ██████╔╝█████╗  ██████╔╝   ██║   ', delay: 150, class: 'bright glitch' },
+            { text: '  ██║   ██║██║   ██║   ██╔══██╗██╔══╝  ██╔══██╗   ██║   ', delay: 200, class: 'bright glitch' },
+            { text: '  ╚██████╔╝██║   ██║   ██████╔╝███████╗██║  ██║   ██║   ', delay: 250, class: 'bright glitch' },
+            { text: '   ╚═════╝ ╚═╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ', delay: 300, class: 'bright glitch' },
+            { text: '', delay: 350 },
+            { text: '╔═══════════════════════════════════════════════════════════════════════╗', delay: 400 },
+            { text: '║                  GITBERT TRADING AGENT v0.1.0                         ║', delay: 450, class: 'header' },
+            { text: '║                  Open Source Solana Bot                               ║', delay: 500, class: 'header' },
+            { text: '╚═══════════════════════════════════════════════════════════════════════╝', delay: 550 },
+            { text: '', delay: 650 },
+            { text: '[' + new Date().toISOString() + '] Initializing GITBERT...', delay: 750, class: 'timestamp' },
+            { text: '', delay: 850 },
+            { text: '┌─ SYSTEM INFORMATION', delay: 950, class: 'bright' },
+            { text: '│  Developer:      GitHub Community', delay: 1050 },
+            { text: '│  Funding:        1.00 SOL', delay: 1150 },
+            { text: '│  Network:        Solana Mainnet', delay: 1250 },
+            { text: '│  Status:         <span class="status-indicator warming"></span>WARMING UP', delay: 1350, class: 'warning' },
+            { text: '│  Version:        0.1.0-alpha', delay: 1450 },
+            { text: '│  License:        MIT Open Source', delay: 1550 },
+            { text: '└─', delay: 1650 },
+            { text: '', delay: 1750 },
+            { text: '[OK] Connected to Solana RPC', delay: 1850, class: 'success' },
+            { text: '[OK] Wallet loaded successfully', delay: 2050, class: 'success' },
+            { text: '[OK] Smart contract initialized', delay: 2250, class: 'success' },
+            { text: '', delay: 2450 },
+            { text: '┌─ WALLET STATUS', delay: 2550, class: 'bright' },
+            { text: '│  Address:        GtBRT...x7K9q (truncated)', delay: 2650 },
+            { text: '│  Balance:        1.00 SOL', delay: 2750, class: 'success' },
+            { text: '│  Reserved:       0.05 SOL (network fees)', delay: 2850, class: 'muted' },
+            { text: '│  Available:      0.95 SOL', delay: 2950, class: 'bright' },
+            { text: '└─', delay: 3050 },
+            { text: '', delay: 3150 },
+            { text: '[INFO] Loading trading strategies...', delay: 3250 },
+            { text: '  ├─ Momentum Scanner       [████████████████████] 100%', delay: 3550, class: 'success' },
+            { text: '  ├─ Volume Analysis        [████████████████████] 100%', delay: 3850, class: 'success' },
+            { text: '  ├─ Risk Management        [████████████████████] 100%', delay: 4150, class: 'success' },
+            { text: '  └─ Portfolio Balancer     [████████████████████] 100%', delay: 4450, class: 'success' },
+            { text: '', delay: 4750 },
+            { text: '[INFO] Warming up neural networks...', delay: 4850, class: 'warning' },
+            { text: '  ├─ Price Prediction Model [████████████░░░░░░░░] 65%', delay: 5350, class: 'warning' },
+            { text: '  ├─ Sentiment Analyzer     [████████░░░░░░░░░░░░] 45%', delay: 5850, class: 'warning' },
+            { text: '  └─ Pattern Recognition    [██████░░░░░░░░░░░░░░] 35%', delay: 6350, class: 'warning' },
+            { text: '', delay: 6850 },
+            { text: '┌─ PRE-LAUNCH DIAGNOSTICS', delay: 7050, class: 'bright' },
+            { text: '│  Market Data Feed:       <span class="success">● CONNECTED</span>', delay: 7250 },
+            { text: '│  Order Execution:        <span class="warning">● STANDBY</span>', delay: 7450 },
+            { text: '│  Risk Limits:            <span class="success">● CONFIGURED</span>', delay: 7650 },
+            { text: '│  Backup Systems:         <span class="success">● READY</span>', delay: 7850 },
+            { text: '└─', delay: 8050 },
+            { text: '', delay: 8250 },
+            { text: '[NOTICE] Agent is in PRE-LAUNCH mode', delay: 8450, class: 'warning' },
+            { text: '[NOTICE] Live trading NOT yet enabled', delay: 8650, class: 'warning' },
+            { text: '[NOTICE] Performing final calibrations...', delay: 8850, class: 'warning' },
+            { text: '', delay: 9050 },
+            { text: '════════════════════════════════════════════════════════════════════════', delay: 9250, class: 'separator' },
+            { text: '', delay: 9450 },
+            { text: '<span class="bright">RECENT SIMULATED EXECUTIONS (TEST MODE):</span>', delay: 9650 },
+            { text: '', delay: 9850 },
+            { text: '[SIM] 2026-01-07 14:23:17 → Analyzed SOL/USDC   | Signal: BUY  | Confidence: 78%', delay: 10050, class: 'muted' },
+            { text: '[SIM] 2026-01-07 14:23:42 → Analyzed RAY/SOL    | Signal: HOLD | Confidence: 45%', delay: 10350, class: 'muted' },
+            { text: '[SIM] 2026-01-07 14:24:05 → Analyzed BONK/USDC  | Signal: SELL | Confidence: 62%', delay: 10650, class: 'muted' },
+            { text: '[SIM] 2026-01-07 14:24:28 → Analyzed JUP/SOL    | Signal: BUY  | Confidence: 81%', delay: 10950, class: 'muted' },
+            { text: '', delay: 11250 },
+            { text: '════════════════════════════════════════════════════════════════════════', delay: 11450, class: 'separator' },
+            { text: '', delay: 11650 },
+            { text: '<span class="status-indicator warming"></span> System warming up... ETA: ~2 hours', delay: 11850, class: 'warning' },
+            { text: '<span class="cursor"></span>', delay: 12050 }
+        ];
+
+        let lineIndex = 0;
+
+        function printLine() {
+            if (lineIndex < lines.length) {
+                const line = lines[lineIndex];
+                const div = document.createElement('div');
+                div.className = 'line ' + (line.class || '');
+                div.innerHTML = line.text;
+                div.style.animationDelay = '0s';
+                output.appendChild(div);
+                
+                if (lineIndex === lines.length - 1) {
+                    output.scrollTop = output.scrollHeight;
+                }
+                
+                lineIndex++;
+                setTimeout(printLine, lines[lineIndex - 1].delay);
+            }
+        }
+
+        setTimeout(printLine, 500);
+
+        // Auto-scroll to bottom
+        setInterval(() => {
+            output.scrollTop = output.scrollHeight;
+        }, 100);
+    </script>
+</body>
+</html>
